@@ -1,0 +1,72 @@
+#Cliente
+import socket
+import tkinter as tk
+import threading
+
+class Cliente:
+    def __init__(self, host, port):
+        self.host = host
+        self.port = port
+
+        # Configurar el socket del cliente y conectar
+        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.client_socket.connect((self.host, self.port))
+
+        # Configurar la interfaz gráfica
+        self.window = tk.Tk()
+        self.window.title("Cliente")
+
+        self.text_area = tk.Text(self.window, state=tk.DISABLED)
+        self.text_area.pack(padx=10, pady=10)
+
+        self.message_entry = tk.Entry(self.window, width=50)
+        self.message_entry.pack(padx=10, pady=10)
+
+        self.send_button = tk.Button(self.window, text="Enviar", command=self.enviar)
+        self.send_button.pack(padx=10, pady=5)
+
+        # Iniciar el hilo para recibir mensajes
+        self.receive_thread = threading.Thread(target=self.recibir)
+        self.receive_thread.start()
+
+        self.window.mainloop()
+
+    def enviar(self):
+        # Enviar mensaje al servidor
+        message = self.message_entry.get()
+        self.client_socket.send(f"Cliente: {message}".encode())
+        self.text_area.config(state=tk.NORMAL)
+        self.text_area.insert(tk.END, f"Tú(cliente): {message}\n")
+        self.text_area.config(state=tk.DISABLED)
+        self.message_entry.delete(0, tk.END)
+        if message.lower() == "chau":
+            self.client_socket.close()
+            self.window.destroy()
+
+    def recibir(self):
+        while True:
+            try:
+                # Recibir mensaje del servidor
+                data = self.client_socket.recv(1024).decode()
+                if not data:
+                    break
+                # Mostrar mensaje en el área de mensajes
+                self.text_area.config(state=tk.NORMAL)
+                self.text_area.insert(tk.END, data + "\n")
+                self.text_area.config(state=tk.DISABLED)
+                if data.lower() == "chau":
+                    self.client_socket.close()
+                    self.window.destroy()
+                    break
+            except ConnectionAbortedError:
+                break
+            except:
+                print("Error al recibir mensajes.")
+                break
+        self.client_socket.close()
+        self.text_area.config(state=tk.NORMAL)
+        self.text_area.insert(tk.END, "Conexión cerrada.\n")
+        self.text_area.config(state=tk.DISABLED)
+
+if __name__ == "__main__":
+    cliente = Cliente("192.168.56.1", 12345)
