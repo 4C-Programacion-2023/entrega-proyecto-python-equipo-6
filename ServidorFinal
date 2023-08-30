@@ -1,0 +1,79 @@
+import socket
+import tkinter as tk
+import threading
+
+class Servidor:
+    def __init__(self, host, port):
+        self.host = host
+        self.port = port
+
+        # Configurar el socket del servidor
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_socket.bind((self.host, self.port))
+        self.server_socket.listen(1)
+
+        print("Esperando conexiones...")
+
+        # Aceptar la conexión entrante
+        self.conn, self.addr = self.server_socket.accept()
+        print("Conexión establecida desde:", self.addr)
+
+        # Configurar la interfaz gráfica
+        self.window = tk.Tk()
+        self.window.title("Servidor")
+
+        self.text_area = tk.Text(self.window, state=tk.DISABLED)
+        self.text_area.pack(padx=10, pady=10)
+
+        self.message_entry = tk.Entry(self.window, width=50)
+        self.message_entry.pack(padx=10, pady=10)
+
+        self.send_button = tk.Button(self.window, text="Enviar", command=self.enviar)
+        self.send_button.pack(padx=10, pady=5)
+
+        # Iniciar el hilo para recibir mensajes
+        self.receive_thread = threading.Thread(target=self.recibir)
+        self.receive_thread.start()
+
+        self.window.mainloop()
+
+    def enviar(self):
+        # Enviar mensaje al cliente
+        message = self.message_entry.get()
+        self.conn.send(f"Servidor: {message}".encode())
+        self.text_area.config(state=tk.NORMAL)
+        self.text_area.insert(tk.END, f"Tú(servidor): {message}\n")
+        self.text_area.config(state=tk.DISABLED)
+        self.message_entry.delete(0, tk.END)
+        if message.lower() == "chau":
+            self.conn.close()
+            self.window.destroy()
+
+    def recibir(self):
+        while True:
+            try:
+                # Recibir mensaje del cliente
+                data = self.conn.recv(1024).decode()
+                if not data:
+                    break
+                if not data.startswith("Servidor:"):
+                    # Mostrar mensaje en el área de mensajes
+                    self.text_area.config(state=tk.NORMAL)
+                    self.text_area.insert(tk.END, data + "\n")
+                    self.text_area.config(state=tk.DISABLED)
+                if data.lower() == "chau":
+                    self.conn.close()
+                    self.window.destroy()
+                    break
+            except ConnectionAbortedError:
+                break
+            except:
+                print("Error al recibir mensajes.")
+                break
+        self.conn.close()
+        self.text_area.config(state=tk.NORMAL)
+        self.text_area.insert(tk.END, "Conexión cerrada.\n")
+        self.text_area.config(state=tk.DISABLED)
+
+if __name__ == "__main__":
+    servidor = Servidor("0.0.0.0", 12345)
